@@ -50,16 +50,14 @@ def clip_square_sum(
     -------
         The clipeed data
     """
-    batch_counts = data_batch.astype(np.float64).copy()
-    clip_val_broad = np.broadcast_to(clip_val, batch_counts.shape)
-    np.putmask(
-        batch_counts,
-        batch_counts > clip_val_broad,
-        clip_val_broad,
-    )
-
-    squared_batch_counts_sum = np.square(batch_counts).sum(axis=0)
+    # `astype` already copies (default `copy=True`), so the trailing `.copy()`
+    # is redundant — drop it. Use in-place `np.minimum` to clip without
+    # allocating the boolean mask `np.putmask` requires, and `np.einsum` to
+    # compute the sum-of-squares without materializing `x ** 2`.
+    batch_counts = data_batch.astype(np.float64)
+    np.minimum(batch_counts, clip_val, out=batch_counts)
     batch_counts_sum = batch_counts.sum(axis=0)
+    squared_batch_counts_sum = np.einsum("ij,ij->j", batch_counts, batch_counts)
     return squared_batch_counts_sum, batch_counts_sum
 
 
